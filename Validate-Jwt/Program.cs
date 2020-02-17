@@ -21,7 +21,8 @@ namespace JwtCheck
 
             try
             {
-                Validate(clientId, tenantId, rawIdToken).Wait();
+                var user = Validate(clientId, tenantId, rawIdToken).GetAwaiter().GetResult();
+                Display(user);
             }
             catch (Exception ex)
             {
@@ -31,8 +32,9 @@ namespace JwtCheck
             }
         }
 
-        private static async Task Validate(string clientId, string tenantId, string token)
+        private static async Task<ClaimsPrincipal> Validate(string clientId, string tenantId, string token)
         {
+            // ShowPII should be false to comply with GDPR
             IdentityModelEventSource.ShowPII = true;
 
             var auth0Domain = $"https://login.microsoftonline.com/{tenantId}/v2.0";
@@ -52,8 +54,13 @@ namespace JwtCheck
             var handler = new JwtSecurityTokenHandler();
             var user = handler.ValidateToken(token, validationParameters, out validatedToken);
 
+            return user;
+        }
+
+        private static void Display(ClaimsPrincipal user)
+        {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Token is validated. User Id {user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name)?.Value}");
+            Console.WriteLine($"Token is validated. User Id {user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value}");
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             foreach (var claim in user.Claims)
@@ -61,7 +68,6 @@ namespace JwtCheck
                 Console.WriteLine($"{claim.Type} : {claim.Value}");
             }
             Console.ResetColor();
-
         }
     }
 }
